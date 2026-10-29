@@ -112,6 +112,3 @@ access is resolved; do not relabel the historical evaluation as current.
 - Reproduce with the README, the cited source or supplied CSVs, locked dependencies,
   fixed seeds, identical calendars and cost assumptions. A fresh scrape is not
   identical to the saved input dataset.
-
-See `REQUIREMENTS_AUDIT.md` and `SUBMISSION.md` for unresolved access, secure
-credential handoff, email submission and deadline requirements.

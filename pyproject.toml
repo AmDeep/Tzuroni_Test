@@ -1,0 +1,15 @@
+[project]
+name = "crowdwisdom-forecast"
+version = "0.1.0"
+description = "Sentiment and price forecasting with walk-forward evaluation and Q-learning"
+requires-python = ">=3.11"
+dependencies = [
+    "exchange-calendars>=4.13.2",
+    "numpy>=2.4.6",
+    "pandas>=3.1.0",
+    "scikit-learn>=1.9.1",
+    "vadersentiment>=3.3.2",
+]
+
+[tool.uv]
+package = false

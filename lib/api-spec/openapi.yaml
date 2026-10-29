@@ -1,0 +1,870 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: forecasting
+    description: Research data, forecasts, and evaluation
+  - name: research
+    description: X ingestion and news research
+paths:
+  /forecast/corpus:
+    get:
+      operationId: getHistoricalCorpus
+      tags: [forecasting]
+      summary: Get the verified installed historical corpus
+      responses:
+        "200":
+          description: Corpus availability and per-company coverage
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HistoricalCorpus"
+  /forecast/corpus/import:
+    post:
+      operationId: importHistoricalCorpus
+      tags: [forecasting]
+      summary: Backtest one company using the full installed corpus
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CorpusImportInput"
+      responses:
+        "201":
+          description: Completed historical corpus backtest
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResearchRun"
+        "400":
+          description: Invalid company or cost assumptions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Historical corpus has not been installed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Historical training failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "502":
+          description: Historical prices could not be fetched
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /forecast/dashboard:
+    get:
+      operationId: getForecastDashboard
+      tags: [forecasting]
+      summary: Get a forecast dashboard for an asset
+      parameters:
+        - in: query
+          name: asset
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 20
+            pattern: '^\s*[A-Za-z0-9.^=_-]+\s*$'
+          description: Asset ticker; surrounding whitespace is trimmed and the value is uppercased.
+        - in: query
+          name: runId
+          required: false
+          schema:
+            type: string
+            minLength: 36
+            maxLength: 36
+            pattern: '^[0-9a-fA-F-]{36}$'
+          description: A completed run to display instead of the latest completed run.
+      responses:
+        "200":
+          description: Selected forecast dashboard data, or a valid empty state before ingestion
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForecastDashboard"
+        "400":
+          description: Missing or invalid asset ticker or run ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Selected run was not found, is incomplete, or belongs to another asset
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /forecast/history:
+    get:
+      operationId: getForecastHistory
+      tags: [forecasting]
+      summary: List recent research runs for an asset
+      parameters:
+        - in: query
+          name: asset
+          required: true
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 20
+            pattern: '^\s*[A-Za-z0-9.^=_-]+\s*$'
+          description: Asset ticker; surrounding whitespace is trimmed and the value is uppercased.
+      responses:
+        "200":
+          description: Recent research runs, including completed, active, and failed runs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ResearchRun"
+        "400":
+          description: Missing or invalid asset ticker
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /forecast/import:
+    post:
+      operationId: importHistoricalData
+      tags: [forecasting]
+      summary: Import aligned historical posts and daily prices
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HistoricalImportInput"
+      responses:
+        "201":
+          description: Imported dataset and trained forecast
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResearchRun"
+        "400":
+          description: Invalid ticker or dataset constraints
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
+          description: Historical data was accepted, but model training failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /forecast/report:
+    get:
+      operationId: getEvaluationReport
+      tags: [forecasting]
+      summary: Get the Markdown evaluation report for a research run
+      parameters:
+        - in: query
+          name: runId
+          required: true
+          schema:
+            type: string
+            minLength: 36
+            maxLength: 36
+            pattern: '^[0-9a-fA-F-]{36}$'
+      responses:
+        "200":
+          description: Evaluation report with metrics and limitations
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EvaluationReport"
+        "400":
+          description: Missing or malformed research run ID
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+        "404":
+          description: Run does not have a completed evaluation report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /research/runs:
+    post:
+      operationId: startResearchRun
+      tags: [research]
+      summary: Start an Apify X scrape and price-data ingestion run
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ResearchRunInput"
+      responses:
+        "202":
+          description: Scrape started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResearchRun"
+        "400":
+          description: Invalid asset, actor, or query
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /research/runs/{runId}:
+    get:
+      operationId: getResearchRun
+      tags: [research]
+      summary: Get ingestion and model-training progress
+      parameters:
+        - in: path
+          name: runId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Current research run state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResearchRun"
+        "404":
+          description: Run not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+  /research/news:
+    post:
+      operationId: searchAssetNews
+      tags: [research]
+      summary: Search Tavily and Exa for recent asset-related news
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NewsSearchInput"
+      responses:
+        "200":
+          description: Deduplicated news results with provider attribution
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NewsSearchResults"
+        "502":
+          description: All news providers failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NewsSearchError"
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+      required: [error]
+    NewsProviderErrors:
+      type: object
+      properties:
+        tavily:
+          type: string
+        exa:
+          type: string
+    NewsSearchError:
+      type: object
+      properties:
+        error:
+          type: string
+        providerErrors:
+          $ref: "#/components/schemas/NewsProviderErrors"
+      required: [error, providerErrors]
+    NewsSearchResults:
+      type: object
+      properties:
+        articles:
+          type: array
+          items:
+            $ref: "#/components/schemas/NewsArticle"
+        providerErrors:
+          $ref: "#/components/schemas/NewsProviderErrors"
+      required: [articles, providerErrors]
+    SeriesPoint:
+      type: object
+      properties:
+        sessionDate:
+          type: string
+          pattern: '^\d{4}-\d{2}-\d{2}$'
+        timestamp:
+          type: string
+          format: date-time
+        close:
+          type: number
+        sentimentScore:
+          type: ["number", "null"]
+        postVolume:
+          type: integer
+        return1d:
+          type: ["number", "null"]
+      required: [timestamp, close, sentimentScore, postVolume, return1d]
+    PolicyStatistics:
+      type: object
+      properties:
+        sharpe:
+          type: ["number", "null"]
+        sortino:
+          type: ["number", "null"]
+        maxDrawdown:
+          type: ["number", "null"]
+        grossTotalReturn:
+          type: ["number", "null"]
+        netTotalReturn:
+          type: ["number", "null"]
+      required: [sharpe, sortino, maxDrawdown, grossTotalReturn, netTotalReturn]
+    PolicyBenchmark:
+      type: object
+      properties:
+        name:
+          type: string
+        metrics:
+          $ref: "#/components/schemas/PolicyStatistics"
+      required: [name, metrics]
+    ReinforcementEvaluation:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [ready, insufficient]
+        method:
+          type: string
+        reason:
+          type: string
+        execution:
+          type: string
+        episodes:
+          type: integer
+        seeds:
+          type: array
+          items:
+            type: integer
+        sampleSize:
+          type: integer
+        folds:
+          type: integer
+        testStart:
+          type: string
+        testEnd:
+          type: string
+        selectedAction:
+          type: string
+          enum: [short, flat, long]
+        beatsBuyHold:
+          type: boolean
+        metrics:
+          $ref: "#/components/schemas/PolicyStatistics"
+        benchmarks:
+          type: array
+          items:
+            $ref: "#/components/schemas/PolicyBenchmark"
+        seedResults:
+          type: array
+          items:
+            $ref: "#/components/schemas/PolicyBenchmark"
+        foldWindows:
+          type: array
+          items:
+            type: object
+            properties:
+              trainEnd:
+                type: string
+              testStart:
+                type: string
+              testEnd:
+                type: string
+            required: [trainEnd, testStart, testEnd]
+        limitations:
+          type: array
+          items:
+            type: string
+      required: [status, method, reason, execution, episodes, seeds, sampleSize, folds, limitations]
+    DataQuality:
+      type: object
+      properties:
+        coverageQualified:
+          type: boolean
+        requestedStart:
+          type: string
+        requestedEnd:
+          type: string
+        observedStart:
+          type: ["string", "null"]
+        observedEnd:
+          type: ["string", "null"]
+        coveredWeeks:
+          type: integer
+        totalWeeks:
+          type: integer
+        weeklyCoverageRatio:
+          type: number
+        activeSessionRatio:
+          type: number
+        postCapReached:
+          type: boolean
+        warnings:
+          type: array
+          items:
+            type: string
+      required: [coverageQualified, requestedStart, requestedEnd, observedStart, observedEnd, coveredWeeks, totalWeeks, weeklyCoverageRatio, activeSessionRatio, postCapReached, warnings]
+    ForecastPoint:
+      type: object
+      properties:
+        horizon:
+          type: integer
+        predictedClose:
+          type: ["number", "null"]
+        predictedReturn:
+          type: ["number", "null"]
+        lowerBound:
+          type: ["number", "null"]
+        upperBound:
+          type: ["number", "null"]
+      required: [horizon, predictedClose, predictedReturn, lowerBound, upperBound]
+    HorizonMetrics:
+      type: object
+      properties:
+        horizon:
+          type: integer
+        mae:
+          type: ["number", "null"]
+        rmse:
+          type: ["number", "null"]
+        r2:
+          type: ["number", "null"]
+        directionalAccuracy:
+          type: ["number", "null"]
+        sampleSize:
+          type: integer
+      required: [horizon, mae, rmse, r2, directionalAccuracy, sampleSize]
+    ForecastDashboard:
+      type: object
+      properties:
+        modelVersion:
+          type: string
+        outlookMarkdown:
+          type: string
+        outlookHtml:
+          type: string
+        reinforcementLearning:
+          $ref: "#/components/schemas/ReinforcementEvaluation"
+        dataQuality:
+          $ref: "#/components/schemas/DataQuality"
+        assetSymbol:
+          type: string
+        status:
+          type: string
+          enum: [empty, ready]
+        hasData:
+          type: boolean
+        lastUpdated:
+          type: ["string", "null"]
+          format: date-time
+        currentPrice:
+          type: ["number", "null"]
+        sentimentScore:
+          type: ["number", "null"]
+        sentimentLabel:
+          type: ["string", "null"]
+        postCount:
+          type: integer
+        priceCount:
+          type: integer
+        series:
+          type: array
+          items:
+            $ref: "#/components/schemas/SeriesPoint"
+        forecast:
+          type: array
+          items:
+            $ref: "#/components/schemas/ForecastPoint"
+        metrics:
+          type: array
+          items:
+            $ref: "#/components/schemas/HorizonMetrics"
+        sentimentCoverage:
+          $ref: "#/components/schemas/SentimentCoverage"
+        newsContext:
+          $ref: "#/components/schemas/NewsSearchResults"
+        marketCalendar:
+          type: string
+        marketTimezone:
+          type: string
+        marketExchange:
+          type: string
+        marketCalendarSource:
+          type: string
+          enum: [provider, ticker, user]
+        historicalAsOf:
+          type: string
+          pattern: '^\d{4}-\d{2}-\d{2}$'
+        sourceTitle:
+          type: string
+        sourceUrl:
+          type: string
+        sourceLicense:
+          type: string
+        latestFailedRun:
+          $ref: "#/components/schemas/FailedRunSummary"
+        summary:
+          type: string
+      required:
+        - assetSymbol
+        - status
+        - hasData
+        - lastUpdated
+        - currentPrice
+        - sentimentScore
+        - sentimentLabel
+        - postCount
+        - priceCount
+        - series
+        - forecast
+        - metrics
+        - sentimentCoverage
+        - latestFailedRun
+        - summary
+    FailedRunSummary:
+      type: ["object", "null"]
+      properties:
+        id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [failed]
+        error:
+          type: ["string", "null"]
+        startedAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: ["string", "null"]
+          format: date-time
+      required: [id, status, error, startedAt, finishedAt]
+    SentimentCoverage:
+      type: object
+      properties:
+        postStartDate:
+          type: ["string", "null"]
+        postEndDate:
+          type: ["string", "null"]
+        activePostDays:
+          type: integer
+          minimum: 0
+        activePriceDays:
+          type: integer
+          minimum: 0
+        priceWindowDays:
+          type: integer
+          minimum: 0
+        coverageRatio:
+          type: number
+          minimum: 0
+          maximum: 1
+        isSparse:
+          type: boolean
+      required:
+        - postStartDate
+        - postEndDate
+        - activePostDays
+        - activePriceDays
+        - priceWindowDays
+        - coverageRatio
+        - isSparse
+    HistoricalCorpus:
+      type: object
+      properties:
+        available:
+          type: boolean
+        id:
+          type: string
+        title:
+          type: string
+        sourceUrl:
+          type: string
+        license:
+          type: string
+        startDate:
+          type: string
+          format: date-time
+        endDate:
+          type: string
+          format: date-time
+        sourceRows:
+          type: integer
+        uniqueUsablePosts:
+          type: integer
+        assets:
+          type: array
+          items:
+            type: object
+            properties:
+              assetSymbol:
+                type: string
+              postCount:
+                type: integer
+              sessionCount:
+                type: integer
+            required: [assetSymbol, postCount, sessionCount]
+      required: [available, assets]
+    CorpusImportInput:
+      type: object
+      properties:
+        assetSymbol:
+          type: string
+          enum: [AAPL, AMZN, GOOG, MSFT, TSLA]
+        costAssumptions:
+          $ref: "#/components/schemas/CostAssumptions"
+      required: [assetSymbol]
+    ResearchRunInput:
+      type: object
+      properties:
+        assetSymbol:
+          type: string
+          minLength: 1
+          maxLength: 20
+          pattern: '^\s*[A-Za-z0-9.^=_-]+\s*$'
+        searchQuery:
+          type: string
+          maxLength: 300
+        companyName:
+          type: string
+          maxLength: 100
+        costAssumptions:
+          $ref: "#/components/schemas/CostAssumptions"
+        actorId:
+          type: string
+          minLength: 1
+          maxLength: 120
+          pattern: '^[A-Za-z0-9_~-]{1,120}$'
+          default: apidojo~tweet-scraper
+        lookbackDays:
+          type: integer
+          minimum: 1
+          maximum: 180
+          default: 180
+        maxPosts:
+          type: integer
+          minimum: 50
+          maximum: 5000
+          default: 1000
+      required: [assetSymbol]
+    CostAssumptions:
+      type: object
+      properties:
+        transactionCostBps:
+          type: number
+          minimum: 0
+          maximum: 5000
+          default: 1
+        slippageBps:
+          type: number
+          minimum: 0
+          maximum: 5000
+          default: 3
+        marketImpactBps:
+          type: number
+          minimum: 0
+          maximum: 5000
+          default: 1
+        annualBorrowRateBps:
+          type: number
+          minimum: 0
+          maximum: 5000
+          default: 300
+    ResearchRun:
+      type: object
+      properties:
+        id:
+          type: string
+        assetSymbol:
+          type: string
+        actorId:
+          type: string
+        status:
+          type: string
+          enum: [queued, scraping, training, completed, failed]
+        actorRunId:
+          type: ["string", "null"]
+        startedAt:
+          type: string
+          format: date-time
+        finishedAt:
+          type: ["string", "null"]
+          format: date-time
+        postCount:
+          type: integer
+        priceCount:
+          type: integer
+        error:
+          type: ["string", "null"]
+      required:
+        - id
+        - assetSymbol
+        - actorId
+        - status
+        - actorRunId
+        - startedAt
+        - finishedAt
+        - postCount
+        - priceCount
+        - error
+    SocialPostInput:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        text:
+          type: string
+        likes:
+          type: integer
+          minimum: 0
+          default: 0
+        reposts:
+          type: integer
+          minimum: 0
+          default: 0
+        views:
+          type: integer
+          minimum: 0
+          default: 0
+        authorFollowers:
+          type: integer
+          minimum: 0
+          default: 0
+        sentimentLabel:
+          type: ["string", "null"]
+      required: [timestamp, text]
+    PriceBarInput:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        close:
+          type: number
+          exclusiveMinimum: 0
+      required: [timestamp, close]
+    HistoricalImportInput:
+      type: object
+      properties:
+        marketCalendar:
+          type: string
+          enum: [XNYS, XTSE, XLON, XETR, XPAR, XASX, XHKG, XTKS, UTC-24/7]
+        assetSymbol:
+          type: string
+          minLength: 1
+          maxLength: 20
+          pattern: '^\s*[A-Za-z0-9.^=_-]+\s*$'
+          description: Asset ticker; surrounding whitespace is trimmed and the value is uppercased.
+        posts:
+          type: array
+          maxItems: 10000
+          items:
+            $ref: "#/components/schemas/SocialPostInput"
+        priceBars:
+          type: array
+          minItems: 20
+          maxItems: 1000
+          items:
+            $ref: "#/components/schemas/PriceBarInput"
+        costAssumptions:
+          $ref: "#/components/schemas/CostAssumptions"
+      required: [assetSymbol, posts, priceBars]
+    NewsSearchInput:
+      type: object
+      properties:
+        assetSymbol:
+          type: string
+          minLength: 1
+          maxLength: 20
+        companyName:
+          type: ["string", "null"]
+          maxLength: 100
+      required: [assetSymbol]
+    NewsArticle:
+      type: object
+      properties:
+        title:
+          type: string
+        url:
+          type: string
+          format: uri
+        publishedAt:
+          type: ["string", "null"]
+        source:
+          type: string
+        snippet:
+          type: ["string", "null"]
+        providers:
+          type: array
+          items:
+            type: string
+            enum: [Tavily, Exa]
+          minItems: 1
+      required: [title, url, publishedAt, source, snippet, providers]
+    EvaluationReport:
+      type: object
+      properties:
+        runId:
+          type: string
+        assetSymbol:
+          type: string
+        generatedAt:
+          type: string
+          format: date-time
+        markdown:
+          type: string
+      required: [runId, assetSymbol, generatedAt, markdown]
+

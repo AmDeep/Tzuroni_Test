@@ -1,0 +1,11 @@
+{
+  "XNYS": {"timeZone":"America/New_York","exchanges":["NYQ","NYSE","NYS","NMS","NGM","NCM","NAS","NASDAQ","ASE","AMEX","PCX","BTS","BATS"],"suffixes":[]},
+  "XTSE": {"timeZone":"America/Toronto","exchanges":["TOR","TSX"],"suffixes":[".TO"]},
+  "XLON": {"timeZone":"Europe/London","exchanges":["LSE","LONDON"],"suffixes":[".L"]},
+  "XETR": {"timeZone":"Europe/Berlin","exchanges":["GER","XETRA"],"suffixes":[".DE"]},
+  "XPAR": {"timeZone":"Europe/Paris","exchanges":["PAR","PARIS"],"suffixes":[".PA"]},
+  "XASX": {"timeZone":"Australia/Sydney","exchanges":["ASX"],"suffixes":[".AX"]},
+  "XHKG": {"timeZone":"Asia/Hong_Kong","exchanges":["HKG","HKSE"],"suffixes":[".HK"]},
+  "XTKS": {"timeZone":"Asia/Tokyo","exchanges":["JPX","TYO","TOKYO"],"suffixes":[".T"]},
+  "UTC-24/7": {"timeZone":"UTC","exchanges":["CCC","CRYPTO"],"suffixes":[]}
+}
